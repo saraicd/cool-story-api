@@ -1,7 +1,7 @@
 {
   "name": "cool-story-api",
   "version": "1.0.0",
-  "description": "",
+  "description": "Welcome to **Cool Story API**, the digital playground where the most unexpected and creative stories come to life! 🌟",
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
