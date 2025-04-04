@@ -13,6 +13,16 @@ mongoose.connect(process.env.MONGODB_URI)
   .then(() => console.log("Connected to MongoDB"))
   .catch((err) => console.error("MongoDB Error:", err));
 
+// Get all story entries
+app.get('/story/all', async (req, res) => {
+    try {
+      const entries = await StoryEntry.find().sort({ createdAt: 1 });
+      res.json(entries);
+    } catch (err) {
+      res.status(500).json({ message: 'Internal Server Error', error: err.message });
+    }
+});
+
 // Get the latest story entry
 app.get('/story/latest', async (req, res) => {
   const latest = await StoryEntry.findOne().sort({ createdAt: -1 });
