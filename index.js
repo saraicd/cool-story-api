@@ -3,6 +3,7 @@ const express = require('express');
 const mongoose = require('mongoose');
 const StoryEntry = require('./models/StoryEntry');
 const rateLimit = require('express-rate-limit');
+const helmet = require('helmet');
 
 const app = express();
 app.use(express.json());
@@ -19,6 +20,9 @@ const postLimiter = rateLimit({
     },
   });
 
+// Helmet setts various HTTP headers
+app.use(helmet());
+
 // MongoDB Connection
 mongoose.connect(process.env.MONGODB_URI)
   .then(() => console.log("Connected to MongoDB"))
@@ -29,7 +33,7 @@ app.get('/story/test', async (req, res) => {
     res.send("Test successful.")
 });
 
-// Get all story entries
+// GET all story entries
 app.get('/story/all', async (req, res) => {
     try {
       const entries = await StoryEntry.find().sort({ createdAt: 1 });
@@ -39,13 +43,13 @@ app.get('/story/all', async (req, res) => {
     }
 });
 
-// Get the latest story entry
+// GET the latest story entry
 app.get('/story/latest', async (req, res) => {
   const latest = await StoryEntry.findOne().sort({ createdAt: -1 });
   res.json(latest);
 });
 
-// Submit a new story entry
+// POST Submit a new story entry
 app.post('/story/entry', postLimiter, async (req, res) => {
   const { text, previousEntryId } = req.body;
 
