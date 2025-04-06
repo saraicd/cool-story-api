@@ -4,7 +4,7 @@ const storyEntrySchema = new mongoose.Schema({
   text: {
     type: String,
     required: true,
-    maxlength: 1000,
+    maxlength: 500,
   },
   createdAt: {
     type: Date,

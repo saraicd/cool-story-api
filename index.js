@@ -2,16 +2,32 @@ require('dotenv').config();
 const express = require('express');
 const mongoose = require('mongoose');
 const StoryEntry = require('./models/StoryEntry');
+const rateLimit = require('express-rate-limit');
 
 const app = express();
 app.use(express.json());
 
 const PORT = process.env.PORT || 3000;
 
+//Rate limit- Help protect from DDoS attacks
+const postLimiter = rateLimit({
+    windowMs: 60 * 15000, 
+    max: 1, 
+    message: {
+      status: 429,
+      message: 'Too many submissions. Take your time to think about the next step of the story.',
+    },
+  });
+
 // MongoDB Connection
 mongoose.connect(process.env.MONGODB_URI)
   .then(() => console.log("Connected to MongoDB"))
   .catch((err) => console.error("MongoDB Error:", err));
+
+// Get test
+app.get('/story/test', async (req, res) => {
+    res.send("Test successful.")
+});
 
 // Get all story entries
 app.get('/story/all', async (req, res) => {
@@ -30,7 +46,7 @@ app.get('/story/latest', async (req, res) => {
 });
 
 // Submit a new story entry
-app.post('/story/entry', async (req, res) => {
+app.post('/story/entry', postLimiter, async (req, res) => {
   const { text, previousEntryId } = req.body;
 
   if (!text) return res.status(400).json({ message: 'Text is required.' });
