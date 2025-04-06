@@ -15,6 +15,15 @@ const storyEntrySchema = new mongoose.Schema({
     ref: 'StoryEntry',
     default: null,
   },
+  username: {
+    type: String,
+    required: false, 
+  },
+  contactEmail: {
+    type: String,
+    required: false, 
+    match: [/^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$/, 'Please fill a valid email address'],
+  },
 });
 
 module.exports = mongoose.model('StoryEntry', storyEntrySchema);

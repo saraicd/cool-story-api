@@ -51,9 +51,9 @@ app.get('/story/latest', async (req, res) => {
 
 // POST Submit a new story entry
 app.post('/story/entry', postLimiter, async (req, res) => {
-  const { text, previousEntryId } = req.body;
+    const { text, previousEntryId, username, contactEmail } = req.body;
 
-  if (!text) return res.status(400).json({ message: 'Text is required.' });
+    if (!text || text.length < 10) return res.status(400).json({ message: 'Text must be at least 10 characters long.' });
 
   const latest = await StoryEntry.findOne().sort({ createdAt: -1 });
 
@@ -64,7 +64,7 @@ app.post('/story/entry', postLimiter, async (req, res) => {
     });
   }
 
-  const newEntry = new StoryEntry({ text, previousEntryId });
+  const newEntry = new StoryEntry({ text, previousEntryId, username, contactEmail });
   await newEntry.save();
 
   res.status(201).json(newEntry);
