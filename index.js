@@ -10,6 +10,10 @@ const helmet = require("helmet");
 
 const app = express();
 
+// Trust proxy - Required for Railway and other reverse proxies
+// This allows Express to correctly identify client IPs from X-Forwarded-For header
+app.set("trust proxy", 1);
+
 // CORS - Allow frontend to access API
 app.use(
   cors({
