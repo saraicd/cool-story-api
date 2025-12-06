@@ -1,6 +1,11 @@
 const mongoose = require('mongoose');
 
 const storyEntrySchema = new mongoose.Schema({
+  storyId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Story',
+    required: true,
+  },
   text: {
     type: String,
     required: true,
@@ -17,11 +22,16 @@ const storyEntrySchema = new mongoose.Schema({
   },
   username: {
     type: String,
-    required: false, 
+    required: true,
+    trim: true,
+    minlength: 2,
+    maxlength: 50,
   },
   contactEmail: {
     type: String,
-    required: false, 
+    required: true,
+    trim: true,
+    lowercase: true,
     match: [/^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$/, 'Please fill a valid email address'],
   },
 });

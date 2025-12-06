@@ -1,0 +1,116 @@
+{
+  "info": {
+    "name": "Cool Story API",
+    "description": "API endpoints for the collaborative storytelling platform",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Story Management",
+      "item": [
+        {
+          "name": "Create New Story",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Family Summer Adventure 2025\",\n  \"description\": \"Our collaborative family vacation story\",\n  \"accessCode\": \"SUMMER-2025\",\n  \"maxEntries\": 100\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/story/create",
+              "host": ["{{baseUrl}}"],
+              "path": ["story", "create"]
+            }
+          }
+        },
+        {
+          "name": "Get All Stories",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/stories",
+              "host": ["{{baseUrl}}"],
+              "path": ["stories"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Story Entries",
+      "item": [
+        {
+          "name": "Get All Entries for Story",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/story/SUMMER-2025/all",
+              "host": ["{{baseUrl}}"],
+              "path": ["story", "SUMMER-2025", "all"]
+            }
+          }
+        },
+        {
+          "name": "Get Latest Entry",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/story/SUMMER-2025/latest",
+              "host": ["{{baseUrl}}"],
+              "path": ["story", "SUMMER-2025", "latest"]
+            }
+          }
+        },
+        {
+          "name": "Submit Story Entry",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"accessCode\": \"SUMMER-2025\",\n  \"username\": \"Sarah\",\n  \"contactEmail\": \"sarah@example.com\",\n  \"text\": \"Once upon a time, there was an amazing family adventure...\",\n  \"previousEntryId\": null\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/story/entry",
+              "host": ["{{baseUrl}}"],
+              "path": ["story", "entry"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Health Check",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/story/test",
+          "host": ["{{baseUrl}}"],
+          "path": ["story", "test"]
+        }
+      }
+    }
+  ],
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:3000",
+      "type": "string"
+    }
+  ]
+}

@@ -2,6 +2,8 @@ require('dotenv').config();
 const express = require('express');
 const mongoose = require('mongoose');
 const StoryEntry = require('./models/StoryEntry');
+const Story = require('./models/Story');
+const { validateAccessCode } = require('./middleware/authMiddleware');
 const rateLimit = require('express-rate-limit');
 const helmet = require('helmet');
 
@@ -24,50 +26,185 @@ const postLimiter = rateLimit({
 app.use(helmet());
 
 // MongoDB Connection
-mongoose.connect(process.env.MONGODB_URI)
+// Railway sets MONGO_URL automatically when you add MongoDB plugin
+const mongoUri = process.env.MONGO_URL || process.env.MONGODB_URI;
+mongoose.connect(mongoUri)
   .then(() => console.log("Connected to MongoDB"))
   .catch((err) => console.error("MongoDB Error:", err));
+
+// ==================== STORY MANAGEMENT ENDPOINTS ====================
+
+// Create a new story (admin/setup endpoint - could be protected later)
+app.post('/story/create', async (req, res) => {
+  try {
+    const { title, description, accessCode, maxEntries } = req.body;
+
+    if (!title || !accessCode) {
+      return res.status(400).json({ message: 'Title and access code are required.' });
+    }
+
+    const story = new Story({
+      title,
+      description,
+      accessCode: accessCode.toUpperCase().trim(),
+      maxEntries: maxEntries || null,
+    });
+
+    await story.save();
+    res.status(201).json({
+      message: 'Story created successfully!',
+      story: {
+        id: story._id,
+        title: story.title,
+        accessCode: story.accessCode,
+        status: story.status,
+      }
+    });
+  } catch (err) {
+    if (err.code === 11000) {
+      return res.status(400).json({ message: 'Access code already exists. Please choose a different one.' });
+    }
+    res.status(500).json({ message: 'Error creating story', error: err.message });
+  }
+});
+
+// Get all stories (for admin/management)
+app.get('/stories', async (req, res) => {
+  try {
+    const stories = await Story.find().select('-__v');
+    res.json(stories);
+  } catch (err) {
+    res.status(500).json({ message: 'Error fetching stories', error: err.message });
+  }
+});
+
+// ==================== STORY ENTRY ENDPOINTS ====================
 
 // Get test
 app.get('/story/test', async (req, res) => {
     res.send("Test successful.")
 });
 
-// GET all story entries
-app.get('/story/all', async (req, res) => {
-    try {
-      const entries = await StoryEntry.find().sort({ createdAt: 1 });
-      res.json(entries);
-    } catch (err) {
-      res.status(500).json({ message: 'Internal Server Error', error: err.message });
+// GET all story entries for a specific story
+app.get('/story/:accessCode/all', async (req, res) => {
+  try {
+    const { accessCode } = req.params;
+
+    const story = await Story.findOne({ accessCode: accessCode.toUpperCase() });
+    if (!story) {
+      return res.status(404).json({ message: 'Story not found with that access code.' });
     }
+
+    const entries = await StoryEntry.find({ storyId: story._id })
+      .sort({ createdAt: 1 })
+      .select('-contactEmail'); // Don't expose emails publicly
+
+    res.json({
+      story: {
+        title: story.title,
+        description: story.description,
+        status: story.status,
+      },
+      entries
+    });
+  } catch (err) {
+    res.status(500).json({ message: 'Internal Server Error', error: err.message });
+  }
 });
 
-// GET the latest story entry
-app.get('/story/latest', async (req, res) => {
-  const latest = await StoryEntry.findOne().sort({ createdAt: -1 });
-  res.json(latest);
+// GET the latest story entry for a specific story
+app.get('/story/:accessCode/latest', async (req, res) => {
+  try {
+    const { accessCode } = req.params;
+
+    const story = await Story.findOne({ accessCode: accessCode.toUpperCase() });
+    if (!story) {
+      return res.status(404).json({ message: 'Story not found with that access code.' });
+    }
+
+    const latest = await StoryEntry.findOne({ storyId: story._id })
+      .sort({ createdAt: -1 })
+      .select('-contactEmail');
+
+    res.json({
+      story: {
+        title: story.title,
+        description: story.description,
+        status: story.status,
+      },
+      latestEntry: latest
+    });
+  } catch (err) {
+    res.status(500).json({ message: 'Error fetching latest entry', error: err.message });
+  }
 });
 
-// POST Submit a new story entry
-app.post('/story/entry', postLimiter, async (req, res) => {
+// POST Submit a new story entry (with access code validation)
+app.post('/story/entry', postLimiter, validateAccessCode, async (req, res) => {
+  try {
     const { text, previousEntryId, username, contactEmail } = req.body;
+    const story = req.story; // Attached by validateAccessCode middleware
 
-    if (!text || text.length < 10) return res.status(400).json({ message: 'Text must be at least 10 characters long.' });
+    // Validate required fields
+    if (!username || !contactEmail) {
+      return res.status(400).json({
+        message: 'Username and email are required to contribute.'
+      });
+    }
 
-  const latest = await StoryEntry.findOne().sort({ createdAt: -1 });
+    if (!text || text.length < 10) {
+      return res.status(400).json({
+        message: 'Text must be at least 10 characters long.'
+      });
+    }
 
-  if (latest && latest._id.toString() !== previousEntryId) {
-    return res.status(409).json({
-      message: 'Someone already added the next part. Please reload the story.',
-      latestId: latest._id,
+    // Check if story has reached max entries
+    if (story.maxEntries) {
+      const entryCount = await StoryEntry.countDocuments({ storyId: story._id });
+      if (entryCount >= story.maxEntries) {
+        return res.status(403).json({
+          message: 'This story has reached its maximum number of entries.'
+        });
+      }
+    }
+
+    // Check for race condition (someone else added an entry)
+    const latest = await StoryEntry.findOne({ storyId: story._id })
+      .sort({ createdAt: -1 });
+
+    if (latest && latest._id.toString() !== previousEntryId) {
+      return res.status(409).json({
+        message: 'Someone already added the next part. Please reload the story.',
+        latestId: latest._id,
+      });
+    }
+
+    // Create new entry
+    const newEntry = new StoryEntry({
+      storyId: story._id,
+      text,
+      previousEntryId: previousEntryId || null,
+      username,
+      contactEmail
+    });
+
+    await newEntry.save();
+
+    res.status(201).json({
+      message: 'Your contribution has been added!',
+      entry: {
+        id: newEntry._id,
+        text: newEntry.text,
+        username: newEntry.username,
+        createdAt: newEntry.createdAt,
+      }
+    });
+  } catch (err) {
+    res.status(500).json({
+      message: 'Error saving story entry',
+      error: err.message
     });
   }
-
-  const newEntry = new StoryEntry({ text, previousEntryId, username, contactEmail });
-  await newEntry.save();
-
-  res.status(201).json(newEntry);
 });
 
 app.listen(PORT, () => {
