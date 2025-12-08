@@ -29,7 +29,7 @@ const storyEntrySchema = new mongoose.Schema({
   },
   contactEmail: {
     type: String,
-    required: true,
+    required: false,
     trim: true,
     lowercase: true,
     match: [/^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$/, 'Please fill a valid email address'],

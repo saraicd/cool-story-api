@@ -86,11 +86,9 @@ app.post("/story/create", async (req, res) => {
     });
   } catch (err) {
     if (err.code === 11000) {
-      return res
-        .status(400)
-        .json({
-          message: "Access code already exists. Please choose a different one.",
-        });
+      return res.status(400).json({
+        message: "Access code already exists. Please choose a different one.",
+      });
     }
     res
       .status(500)
@@ -186,9 +184,9 @@ app.post("/story/entry", postLimiter, validateAccessCode, async (req, res) => {
     const story = req.story; // Attached by validateAccessCode middleware
 
     // Validate required fields
-    if (!username || !contactEmail) {
+    if (!username) {
       return res.status(400).json({
-        message: "Username and email are required to contribute.",
+        message: "Username is required to contribute.",
       });
     }
 
@@ -215,11 +213,18 @@ app.post("/story/entry", postLimiter, validateAccessCode, async (req, res) => {
       createdAt: -1,
     });
 
-    if (latest && latest._id.toString() !== previousEntryId) {
+    // For first entry: previousEntryId should be null or "null" and latest should be null
+    // For subsequent entries: previousEntryId should match latest._id
+    const isFirstEntry =
+      !latest && (!previousEntryId || previousEntryId === "null");
+    const isValidSequentialEntry =
+      latest && latest._id.toString() === previousEntryId;
+
+    if (!isFirstEntry && !isValidSequentialEntry) {
       return res.status(409).json({
         message:
           "Someone already added the next part. Please reload the story.",
-        latestId: latest._id,
+        latestId: latest ? latest._id : null,
       });
     }
 

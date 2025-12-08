@@ -203,7 +203,7 @@ Submit a new story entry.
 **Fields:**
 - `accessCode` (required): Story access code
 - `username` (required): Contributor's name (2-50 chars)
-- `contactEmail` (required): Valid email address (for sending completed story)
+- `contactEmail` (optional): Valid email address (for sending completed story)
 - `text` (required): Story contribution (10-500 chars)
 - `previousEntryId` (required): ID of the previous entry (use `null` for first entry)
 
@@ -282,7 +282,7 @@ The API accepts requests from:
   storyId: string;
   text: string;
   username: string;
-  contactEmail: string;  // Only stored, never returned in GET requests
+  contactEmail?: string;  // Optional - Only stored, never returned in GET requests
   createdAt: Date;
   previousEntryId: string | null;
 }
@@ -325,7 +325,7 @@ const submitResponse = await fetch('https://cool-story-api-production.up.railway
   body: JSON.stringify({
     accessCode: 'FAM-2025',
     username: 'Sarah',
-    contactEmail: 'sarah@example.com',
+    contactEmail: 'sarah@example.com', // Optional
     text: 'The adventure continued as they reached the mountain peak...',
     previousEntryId: previousId,
   }),
@@ -391,7 +391,7 @@ All error responses follow this format:
 
 | Status Code | Message | Solution |
 |-------------|---------|----------|
-| 400 | "Username and email are required to contribute" | Provide both username and contactEmail |
+| 400 | "Username is required to contribute" | Provide username field |
 | 400 | "Text must be at least 10 characters long" | Make text longer |
 | 401 | "Invalid access code" | Check the access code is correct |
 | 403 | "This story is completed" | Story is no longer accepting entries |
