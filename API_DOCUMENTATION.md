@@ -55,7 +55,12 @@ Get all available stories.
 ---
 
 #### `POST /story/create`
-Create a new story (admin endpoint).
+Create a new story (admin endpoint - requires API key).
+
+**Headers:**
+```
+X-Admin-Key: your-super-secret-admin-key-here
+```
 
 **Request Body:**
 ```json
@@ -89,7 +94,126 @@ Create a new story (admin endpoint).
 **Status Codes:**
 - `201` - Story created successfully
 - `400` - Missing required fields or access code already exists
+- `401` - Missing admin API key
+- `403` - Invalid admin API key
 - `500` - Server error
+
+**Example (curl):**
+```bash
+curl -X POST https://cool-story-api-production.up.railway.app/story/create \
+  -H "Content-Type: application/json" \
+  -H "X-Admin-Key: your-super-secret-admin-key-here" \
+  -d '{
+    "title": "Family Summer Adventure 2025",
+    "description": "Our collaborative family vacation story",
+    "accessCode": "FAM-2025",
+    "maxEntries": 100
+  }'
+```
+
+**Example (PowerShell):**
+```powershell
+$headers = @{
+    "Content-Type" = "application/json"
+    "X-Admin-Key" = "your-super-secret-admin-key-here"
+}
+$body = @{
+    title = "Family Summer Adventure 2025"
+    description = "Our collaborative family vacation story"
+    accessCode = "FAM-2025"
+    maxEntries = 100
+} | ConvertTo-Json
+
+Invoke-RestMethod -Uri "https://cool-story-api-production.up.railway.app/story/create" `
+  -Method Post -Headers $headers -Body $body
+```
+
+---
+
+#### `PUT /story/:accessCode/edit`
+Edit an existing story (admin endpoint - requires API key).
+
+**Note:** This endpoint preserves the story's ID, access code, and creation date. Only the editable fields can be modified.
+
+**Headers:**
+```
+X-Admin-Key: your-super-secret-admin-key-here
+```
+
+**URL Parameters:**
+- `accessCode`: The story's access code (case-insensitive)
+
+**Request Body (all fields optional):**
+```json
+{
+  "title": "Family Summer Adventure 2025 - Updated",
+  "description": "Our updated collaborative family vacation story",
+  "status": "completed",
+  "maxEntries": 150
+}
+```
+
+**Fields:**
+- `title` (optional): Updated story title (max 100 chars)
+- `description` (optional): Updated story description (max 500 chars)
+- `status` (optional): Story status - must be `'active'`, `'completed'`, or `'archived'`
+- `maxEntries` (optional): Updated maximum number of entries (null = unlimited)
+
+**Response:**
+```json
+{
+  "message": "Story updated successfully!",
+  "story": {
+    "id": "507f1f77bcf86cd799439011",
+    "title": "Family Summer Adventure 2025 - Updated",
+    "description": "Our updated collaborative family vacation story",
+    "accessCode": "FAM-2025",
+    "status": "completed",
+    "maxEntries": 150,
+    "completedAt": "2025-01-20T15:30:00.000Z",
+    "createdAt": "2025-01-15T10:30:00.000Z"
+  }
+}
+```
+
+**Status Codes:**
+- `200` - Story updated successfully
+- `400` - Invalid status value
+- `401` - Missing admin API key
+- `403` - Invalid admin API key
+- `404` - Story not found with that access code
+- `500` - Server error
+
+**Important Notes:**
+- When changing status to `'completed'`, the `completedAt` field is automatically set to the current date/time
+- The story's `_id`, `accessCode`, and `createdAt` are never modified
+- Only provide the fields you want to update; omitted fields remain unchanged
+
+**Example (curl):**
+```bash
+curl -X PUT https://cool-story-api-production.up.railway.app/story/FAM-2025/edit \
+  -H "Content-Type: application/json" \
+  -H "X-Admin-Key: your-super-secret-admin-key-here" \
+  -d '{
+    "status": "completed",
+    "maxEntries": 150
+  }'
+```
+
+**Example (PowerShell):**
+```powershell
+$headers = @{
+    "Content-Type" = "application/json"
+    "X-Admin-Key" = "your-super-secret-admin-key-here"
+}
+$body = @{
+    status = "completed"
+    maxEntries = 150
+} | ConvertTo-Json
+
+Invoke-RestMethod -Uri "https://cool-story-api-production.up.railway.app/story/FAM-2025/edit" `
+  -Method Put -Headers $headers -Body $body
+```
 
 ---
 

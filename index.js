@@ -5,6 +5,7 @@ const cors = require("cors");
 const StoryEntry = require("./models/StoryEntry");
 const Story = require("./models/Story");
 const { validateAccessCode } = require("./middleware/authMiddleware");
+const { adminAuth } = require("./middleware/adminAuth");
 const rateLimit = require("express-rate-limit");
 const helmet = require("helmet");
 
@@ -56,8 +57,8 @@ mongoose
 
 // ==================== STORY MANAGEMENT ENDPOINTS ====================
 
-// Create a new story (admin/setup endpoint - could be protected later)
-app.post("/story/create", async (req, res) => {
+// Create a new story (admin endpoint - protected with API key)
+app.post("/story/create", adminAuth, async (req, res) => {
   try {
     const { title, description, accessCode, maxEntries } = req.body;
 
@@ -105,6 +106,62 @@ app.get("/stories", async (req, res) => {
     res
       .status(500)
       .json({ message: "Error fetching stories", error: err.message });
+  }
+});
+
+// Update/Edit a story (admin endpoint - protected with API key)
+app.put("/story/:accessCode/edit", adminAuth, async (req, res) => {
+  try {
+    const { accessCode } = req.params;
+    const { title, description, status, maxEntries } = req.body;
+
+    // Find story by access code
+    const story = await Story.findOne({ accessCode: accessCode.toUpperCase() });
+
+    if (!story) {
+      return res.status(404).json({
+        message: "Story not found with that access code."
+      });
+    }
+
+    // Update only allowed fields (preserve _id, accessCode, createdAt)
+    if (title !== undefined) story.title = title;
+    if (description !== undefined) story.description = description;
+    if (status !== undefined) {
+      if (!['active', 'completed', 'archived'].includes(status)) {
+        return res.status(400).json({
+          message: "Invalid status. Must be 'active', 'completed', or 'archived'."
+        });
+      }
+      story.status = status;
+
+      // Set completedAt if changing to completed
+      if (status === 'completed' && !story.completedAt) {
+        story.completedAt = new Date();
+      }
+    }
+    if (maxEntries !== undefined) story.maxEntries = maxEntries;
+
+    await story.save();
+
+    res.json({
+      message: "Story updated successfully!",
+      story: {
+        id: story._id,
+        title: story.title,
+        description: story.description,
+        accessCode: story.accessCode,
+        status: story.status,
+        maxEntries: story.maxEntries,
+        completedAt: story.completedAt,
+        createdAt: story.createdAt,
+      }
+    });
+  } catch (err) {
+    res.status(500).json({
+      message: "Error updating story",
+      error: err.message
+    });
   }
 });
 
