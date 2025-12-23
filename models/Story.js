@@ -34,6 +34,12 @@ const storySchema = new mongoose.Schema({
     type: Number,
     default: null, // null = unlimited
   },
+  editCode: {
+    type: String,
+    uppercase: true,
+    trim: true,
+    default: null, // Optional - allows limited editing if provided
+  },
 });
 
 module.exports = mongoose.model('Story', storySchema);

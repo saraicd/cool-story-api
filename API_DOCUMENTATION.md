@@ -9,9 +9,26 @@ https://cool-story-api-production.up.railway.app
 
 ## 🔑 Authentication
 
-This API uses **access codes** for authentication. Each story has a unique access code that must be provided when:
+This API uses a multi-level authentication system:
+
+### 1. Access Codes
+Each story has a unique **access code** that must be provided when:
 - Submitting new entries
-- Accessing story content
+- Accessing story content (reading entries)
+
+### 2. Edit Codes (Optional)
+Stories can optionally have an **edit code** that allows limited editing permissions:
+- Update story description
+- Change story status (active/completed/archived)
+- **Cannot** change title, maxEntries, accessCode, or editCode
+
+Edit codes are perfect for giving trusted users (like story recipients) limited control without full admin access.
+
+### 3. Admin API Key
+Full administrative access using the `X-Admin-Key` header:
+- Create new stories
+- Full edit permissions (all fields)
+- Manage edit codes
 
 ---
 
@@ -68,7 +85,8 @@ X-Admin-Key: your-super-secret-admin-key-here
   "title": "Family Summer Adventure 2025",
   "description": "Our collaborative family vacation story",
   "accessCode": "FAM-2025",
-  "maxEntries": 100
+  "maxEntries": 100,
+  "editCode": "EDIT-FAM-2025"
 }
 ```
 
@@ -77,6 +95,7 @@ X-Admin-Key: your-super-secret-admin-key-here
 - `description` (optional): Story description (max 500 chars)
 - `accessCode` (required): Unique access code (will be converted to uppercase)
 - `maxEntries` (optional): Maximum number of entries allowed (null = unlimited)
+- `editCode` (optional): Optional code that allows limited editing access (description & status only)
 
 **Response:**
 ```json
@@ -86,6 +105,7 @@ X-Admin-Key: your-super-secret-admin-key-here
     "id": "507f1f77bcf86cd799439011",
     "title": "Family Summer Adventure 2025",
     "accessCode": "FAM-2025",
+    "editCode": "EDIT-FAM-2025",
     "status": "active"
   }
 }
@@ -107,7 +127,8 @@ curl -X POST https://cool-story-api-production.up.railway.app/story/create \
     "title": "Family Summer Adventure 2025",
     "description": "Our collaborative family vacation story",
     "accessCode": "FAM-2025",
-    "maxEntries": 100
+    "maxEntries": 100,
+    "editCode": "EDIT-FAM-2025"
   }'
 ```
 
@@ -122,6 +143,7 @@ $body = @{
     description = "Our collaborative family vacation story"
     accessCode = "FAM-2025"
     maxEntries = 100
+    editCode = "EDIT-FAM-2025"
 } | ConvertTo-Json
 
 Invoke-RestMethod -Uri "https://cool-story-api-production.up.railway.app/story/create" `
@@ -149,7 +171,8 @@ X-Admin-Key: your-super-secret-admin-key-here
   "title": "Family Summer Adventure 2025 - Updated",
   "description": "Our updated collaborative family vacation story",
   "status": "completed",
-  "maxEntries": 150
+  "maxEntries": 150,
+  "editCode": "NEW-EDIT-CODE"
 }
 ```
 
@@ -158,6 +181,7 @@ X-Admin-Key: your-super-secret-admin-key-here
 - `description` (optional): Updated story description (max 500 chars)
 - `status` (optional): Story status - must be `'active'`, `'completed'`, or `'archived'`
 - `maxEntries` (optional): Updated maximum number of entries (null = unlimited)
+- `editCode` (optional): Update or remove edit code (set to empty string or null to remove)
 
 **Response:**
 ```json
@@ -168,6 +192,7 @@ X-Admin-Key: your-super-secret-admin-key-here
     "title": "Family Summer Adventure 2025 - Updated",
     "description": "Our updated collaborative family vacation story",
     "accessCode": "FAM-2025",
+    "editCode": "NEW-EDIT-CODE",
     "status": "completed",
     "maxEntries": 150,
     "completedAt": "2025-01-20T15:30:00.000Z",
@@ -212,6 +237,89 @@ $body = @{
 } | ConvertTo-Json
 
 Invoke-RestMethod -Uri "https://cool-story-api-production.up.railway.app/story/FAM-2025/edit" `
+  -Method Put -Headers $headers -Body $body
+```
+
+---
+
+#### `PUT /story/:accessCode/edit-limited`
+Edit a story with limited permissions using an edit code.
+
+**Note:** This endpoint allows users with an edit code to update **only** the description and status. They cannot change the title, maxEntries, accessCode, editCode, or ID.
+
+**Headers:**
+```
+X-Edit-Code: EDIT-FAM-2025
+```
+
+**URL Parameters:**
+- `accessCode`: The story's access code (case-insensitive)
+
+**Request Body (at least one field required):**
+```json
+{
+  "description": "Updated story description",
+  "status": "completed"
+}
+```
+
+**Fields:**
+- `description` (optional): Updated story description (max 500 chars)
+- `status` (optional): Story status - must be `'active'`, `'completed'`, or `'archived'`
+
+**Response:**
+```json
+{
+  "message": "Story updated successfully!",
+  "story": {
+    "id": "507f1f77bcf86cd799439011",
+    "title": "Family Summer Adventure 2025",
+    "description": "Updated story description",
+    "accessCode": "FAM-2025",
+    "status": "completed",
+    "completedAt": "2025-01-20T15:30:00.000Z",
+    "createdAt": "2025-01-15T10:30:00.000Z"
+  }
+}
+```
+
+**Status Codes:**
+- `200` - Story updated successfully
+- `400` - Invalid status value or no fields provided
+- `401` - Missing edit code
+- `403` - Invalid edit code or story doesn't allow edit code access
+- `404` - Story not found with that access code
+- `500` - Server error
+
+**Important Notes:**
+- The edit code must be set on the story (via admin create or edit endpoint) for this to work
+- Users with edit codes cannot modify the title, maxEntries, accessCode, or editCode
+- When changing status to `'completed'`, the `completedAt` field is automatically set
+- This is perfect for giving trusted users limited editing ability without full admin access
+
+**Example (curl):**
+```bash
+curl -X PUT https://cool-story-api-production.up.railway.app/story/FAM-2025/edit-limited \
+  -H "Content-Type: application/json" \
+  -H "X-Edit-Code: EDIT-FAM-2025" \
+  -d '{
+    "description": "Updated story description",
+    "status": "completed"
+  }'
+```
+
+**Example (PowerShell):**
+```powershell
+$headers = @{
+    "Content-Type" = "application/json"
+    "X-Edit-Code" = "EDIT-FAM-2025"
+}
+$body = @{
+    description = "Updated story description"
+    status = "completed"
+} | ConvertTo-Json
+
+Invoke-RestMethod -Uri "https://cool-story-api-production.up.railway.app/story/FAM-2025/edit-limited" `
   -Method Put -Headers $headers -Body $body
 ```
 
@@ -392,6 +500,7 @@ The API accepts requests from:
   title: string;
   description: string;
   accessCode: string;
+  editCode: string | null;  // Optional - allows limited editing if set
   status: 'active' | 'completed' | 'archived';
   createdAt: Date;
   completedAt: Date | null;

@@ -6,6 +6,7 @@ const StoryEntry = require("./models/StoryEntry");
 const Story = require("./models/Story");
 const { validateAccessCode } = require("./middleware/authMiddleware");
 const { adminAuth } = require("./middleware/adminAuth");
+const editAuth = require("./middleware/editAuth");
 const rateLimit = require("express-rate-limit");
 const helmet = require("helmet");
 
@@ -60,7 +61,7 @@ mongoose
 // Create a new story (admin endpoint - protected with API key)
 app.post("/story/create", adminAuth, async (req, res) => {
   try {
-    const { title, description, accessCode, maxEntries } = req.body;
+    const { title, description, accessCode, maxEntries, editCode } = req.body;
 
     if (!title || !accessCode) {
       return res
@@ -73,6 +74,7 @@ app.post("/story/create", adminAuth, async (req, res) => {
       description,
       accessCode: accessCode.toUpperCase().trim(),
       maxEntries: maxEntries || null,
+      editCode: editCode ? editCode.toUpperCase().trim() : null,
     });
 
     await story.save();
@@ -82,6 +84,7 @@ app.post("/story/create", adminAuth, async (req, res) => {
         id: story._id,
         title: story.title,
         accessCode: story.accessCode,
+        editCode: story.editCode,
         status: story.status,
       },
     });
@@ -113,7 +116,7 @@ app.get("/stories", async (req, res) => {
 app.put("/story/:accessCode/edit", adminAuth, async (req, res) => {
   try {
     const { accessCode } = req.params;
-    const { title, description, status, maxEntries } = req.body;
+    const { title, description, status, maxEntries, editCode } = req.body;
 
     // Find story by access code
     const story = await Story.findOne({ accessCode: accessCode.toUpperCase() });
@@ -141,6 +144,67 @@ app.put("/story/:accessCode/edit", adminAuth, async (req, res) => {
       }
     }
     if (maxEntries !== undefined) story.maxEntries = maxEntries;
+    if (editCode !== undefined) {
+      story.editCode = editCode ? editCode.toUpperCase().trim() : null;
+    }
+
+    await story.save();
+
+    res.json({
+      message: "Story updated successfully!",
+      story: {
+        id: story._id,
+        title: story.title,
+        description: story.description,
+        accessCode: story.accessCode,
+        editCode: story.editCode,
+        status: story.status,
+        maxEntries: story.maxEntries,
+        completedAt: story.completedAt,
+        createdAt: story.createdAt,
+      }
+    });
+  } catch (err) {
+    res.status(500).json({
+      message: "Error updating story",
+      error: err.message
+    });
+  }
+});
+
+// Limited edit endpoint - allows users with edit code to update description and status only
+app.put("/story/:accessCode/edit-limited", editAuth, async (req, res) => {
+  try {
+    const { description, status } = req.body;
+
+    // The story is already loaded by editAuth middleware
+    const story = req.story;
+
+    // Update only description and status (NOT title, maxEntries, accessCode, or editCode)
+    if (description !== undefined) {
+      story.description = description;
+    }
+
+    if (status !== undefined) {
+      if (!['active', 'completed', 'archived'].includes(status)) {
+        return res.status(400).json({
+          message: "Invalid status. Must be 'active', 'completed', or 'archived'."
+        });
+      }
+      story.status = status;
+
+      // Set completedAt if changing to completed
+      if (status === 'completed' && !story.completedAt) {
+        story.completedAt = new Date();
+      }
+    }
+
+    // If no fields were provided
+    if (description === undefined && status === undefined) {
+      return res.status(400).json({
+        message: "Please provide at least one field to update (description or status)."
+      });
+    }
 
     await story.save();
 
@@ -152,7 +216,6 @@ app.put("/story/:accessCode/edit", adminAuth, async (req, res) => {
         description: story.description,
         accessCode: story.accessCode,
         status: story.status,
-        maxEntries: story.maxEntries,
         completedAt: story.completedAt,
         createdAt: story.createdAt,
       }
