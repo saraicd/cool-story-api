@@ -172,6 +172,45 @@ app.put("/story/:accessCode/edit", adminAuth, async (req, res) => {
   }
 });
 
+// Delete a story and all its entries (admin endpoint - protected with API key)
+app.delete("/story/:accessCode/delete", adminAuth, async (req, res) => {
+  try {
+    const { accessCode } = req.params;
+
+    // Find story by access code
+    const story = await Story.findOne({ accessCode: accessCode.toUpperCase() });
+
+    if (!story) {
+      return res.status(404).json({
+        message: "Story not found with that access code."
+      });
+    }
+
+    // Delete all entries related to this story
+    const deleteEntriesResult = await StoryEntry.deleteMany({ storyId: story._id });
+
+    // Delete the story itself
+    await Story.deleteOne({ _id: story._id });
+
+    res.json({
+      message: "Story and all related entries deleted successfully!",
+      deleted: {
+        story: {
+          id: story._id,
+          title: story.title,
+          accessCode: story.accessCode
+        },
+        entriesDeleted: deleteEntriesResult.deletedCount
+      }
+    });
+  } catch (err) {
+    res.status(500).json({
+      message: "Error deleting story",
+      error: err.message
+    });
+  }
+});
+
 // Limited edit endpoint - allows users with edit code to update description and status only
 app.put("/story/:accessCode/edit-limited", editAuth, async (req, res) => {
   try {

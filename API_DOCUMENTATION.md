@@ -242,6 +242,59 @@ Invoke-RestMethod -Uri "https://cool-story-api-production.up.railway.app/story/F
 
 ---
 
+#### `DELETE /story/:accessCode/delete`
+Delete a story and all its related entries (admin endpoint - requires API key).
+
+**⚠️ WARNING:** This action is **irreversible**. All story entries will be permanently deleted.
+
+**Headers:**
+```
+X-Admin-Key: your-super-secret-admin-key-here
+```
+
+**URL Parameters:**
+- `accessCode`: The story's access code (case-insensitive)
+
+**Response:**
+```json
+{
+  "message": "Story and all related entries deleted successfully!",
+  "deleted": {
+    "story": {
+      "id": "507f1f77bcf86cd799439011",
+      "title": "Family Summer Adventure 2025",
+      "accessCode": "FAM-2025"
+    },
+    "entriesDeleted": 15
+  }
+}
+```
+
+**Status Codes:**
+- `200` - Story and entries deleted successfully
+- `401` - Missing admin API key
+- `403` - Invalid admin API key
+- `404` - Story not found with that access code
+- `500` - Server error
+
+**Example (curl):**
+```bash
+curl -X DELETE https://cool-story-api-production.up.railway.app/story/FAM-2025/delete \
+  -H "X-Admin-Key: your-super-secret-admin-key-here"
+```
+
+**Example (PowerShell):**
+```powershell
+$headers = @{
+    "X-Admin-Key" = "your-super-secret-admin-key-here"
+}
+
+Invoke-RestMethod -Uri "https://cool-story-api-production.up.railway.app/story/FAM-2025/delete" `
+  -Method Delete -Headers $headers
+```
+
+---
+
 #### `PUT /story/:accessCode/edit-limited`
 Edit a story with limited permissions using an edit code.
 
